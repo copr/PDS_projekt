@@ -10,6 +10,7 @@ object TextRank {
     
   def createGraphMatrix(sentences: Array[Array[String]]): DenseMatrix[Double] = {
     val n = sentences.size
+    print(n)
     val m = DenseMatrix.zeros[Double](n,n)
     val d = 0.85
     var i = 0
@@ -17,7 +18,11 @@ object TextRank {
     for (i <- 0 until n) {
       for (j <- 0 until n) {
         val outgoinWeights = sentences.foldLeft(0.0)((b, a) => b + similarity(sentences(j), a))
-        m(i,j) = (1-d)/n + d*similarity(sentences(j), sentences(i))/outgoinWeights
+        if (outgoinWeights == 0.0) {
+          m(i, j) = (1-d)/n
+        } else {
+          m(i,j) = (1-d)/n + d*similarity(sentences(j), sentences(i))/outgoinWeights
+        }
       }
     }
     return m
@@ -45,6 +50,7 @@ object TextRank {
       val toReallyTake = toTake
     }
     val ranks: Array[Double] = findEigen(createGraphMatrix(wordsFromSentences), 0.01).data
+  //  ranks.map(x => print(x))
     val sentencesOrderRank = (sentences zipWithIndex) zip ranks
     val sOR = sentencesOrderRank.map(x => Tuple3(x._1._1, x._1._2, x._2)).sortWith((a,b) => a._3 > b._3)
     (sOR take toTake).sortWith((a,b) => a._2 < b._2)
