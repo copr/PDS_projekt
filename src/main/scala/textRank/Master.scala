@@ -3,48 +3,48 @@ package textRank
 import akka.actor._
 
 class Master(sentences: Array[Array[String]]) extends Actor {
-  var tokensCounter = 0
-  var nodesFinished = 0
+  private var nodesFinished = 0
   val n = sentences.size
   var countsForSentences = new Array[Int](n)
   var nodes: Array[ActorRef] = new Array[ActorRef](n)
+  val repeats = 5
+  val numberOfTokens = n*repeats
+  var tokensCounter = numberOfTokens
 
 
   def StartFunction = {
-    var i = 0
-    for (i <- 0 until n) {
-      nodes(i) = context.actorOf(Props(new Node(context.actorOf(Props(this)), nodes, i, sentences)))
-      tokensCounter += 1
-    }
-    println("Na zacatku mame tokenu presne " + tokensCounter + " a n je " + n)
-    nodes.map(x => x ! SendToken)
+    (0 until n).foreach(index => nodes(index) = context.actorOf(Props(new Node(nodes, index, sentences, 0))))
+      (0 until repeats).foreach(_ =>  nodes.map(x => x ! SendToken))
+
+
   }
   def receive = {
     case Start => StartFunction
     case OneDown => {
       tokensCounter -= 1
-//      println(tokensCounter)
+//      println("Master: " + tokensCounter)
       if (tokensCounter == 0) {
-        println("Master: jsme na nule u tokenu")
+//        println("Master: vsechny tokeny se vratily")
         nodes.map(x => x ! SendCount)
       }
 
     }
     case Count(nodeCount: Int, index: Int) => {
-      context.stop(nodes(index))
-//      println("Master: skoncil node " + index)
-      countsForSentences(index) = nodeCount
       nodesFinished += 1
+      countsForSentences(index) = nodeCount
+//      println("Master: " + nodesFinished)
       if (nodesFinished == n) {
-        println("mame vsechny")
         val summ:Double = countsForSentences.foldLeft(0.0)((a,b) => a + b)
         val score = countsForSentences.map(x => x / summ)
+        println()
         score.map(x => println(x))
-        System.exit(0)
+        println(score.foldLeft(0.0)((a,b) => a + b))
+        println("Master: vsechny nody skoncily")
+        context.system.shutdown()
       }
     }
-    case Hello => {
-      println("ahojky")
+    case _ => {
+      println("tohle by se nemelo stat")
     }
   }
 }
